@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"syscall"
 	"time"
 
 	"url_new_analyser/internal/adapters/inbound/http_handler"
@@ -16,51 +17,34 @@ import (
 )
 
 func main() {
-	// -------------------------------
 	// 1️⃣ Initialize outbound adapters
-	// -------------------------------
-	httpFetcher := fetcher.NewHTTPFetcher(10 * time.Second)              // HTTP fetcher with 10s timeout
-	htmlParser := parser.NewHTMLParser()                                 // HTML parser
-	linkChecker := linkchecker.NewWorkerPoolLinkChecker(10, 10*time.Second) // 10 concurrent workers, 10s timeout per link
+	httpFetcher := fetcher.NewHTTPFetcher()
+	htmlParser := parser.NewHTMLParser()
+	linkChecker := linkchecker.NewWorkerPoolLinkChecker(10) // 10 workers
 
-	// -------------------------------
 	// 2️⃣ Initialize core use case
-	// -------------------------------
 	analyzeUseCase := usecase.NewAnalyzePageUseCase(httpFetcher, htmlParser, linkChecker)
 
-	// -------------------------------
 	// 3️⃣ Initialize HTTP handler (inbound adapter)
-	// -------------------------------
-	analyzeHandler := http_handler.NewHandler(analyzeUseCase)
+	analyzeHandler := http_handler.NewAnalyzeHandler(analyzeUseCase)
 
-	// -------------------------------
-	// 4️⃣ Create HTTP server with routes
-	// -------------------------------
-	mux := http.NewServeMux()
-	analyzeHandler.RegisterRoutes(mux)
-
+	// 4️⃣ Create HTTP server
 	srv := &http.Server{
-		Addr:         ":8080",
-		Handler:      mux,
-		ReadTimeout:  10 * time.Second,
-		WriteTimeout: 30 * time.Second,
+		Addr:    ":8080",
+		Handler: http.HandlerFunc(analyzeHandler.HandleAnalyze),
 	}
 
-	// -------------------------------
-	// 5️⃣ Start server in a separate goroutine
-	// -------------------------------
+	// 5️⃣ Start server in a goroutine
 	go func() {
-		log.Printf("Server started at %s", srv.Addr)
+		log.Printf("Server started on %s", srv.Addr)
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Fatalf("Server failed: %v", err)
 		}
 	}()
 
-	// -------------------------------
-	// 6️⃣ Wait for OS interrupt signal (Ctrl+C) for graceful shutdown
-	// -------------------------------
+	// 6️⃣ Wait for interrupt signal to shutdown
 	stop := make(chan os.Signal, 1)
-	signal.Notify(stop, os.Interrupt)
+	signal.Notify(stop, os.Interrupt, syscall.SIGTERM)
 
 	<-stop // Block until signal received
 	log.Println("Shutting down server...")
@@ -68,13 +52,13 @@ func main() {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	// Gracefully shutdown HTTP server
+	// 7️⃣ Shutdown server gracefully
 	if err := srv.Shutdown(ctx); err != nil {
 		log.Fatalf("Server Shutdown Failed: %v", err)
 	}
 
-	// Stop worker pool
-	linkChecker.Stop() // ensures all workers exit cleanly
+	// 8️⃣ Stop link checker workers gracefully
+	linkChecker.Stop()
 
 	log.Println("Server exited gracefully")
 }

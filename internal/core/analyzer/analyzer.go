@@ -129,7 +129,23 @@ func normalizeURL(href, base string) string {
     baseParsed, err := url.Parse(base)
     if err != nil {
         return href
-    }
+    }package ports
+
+import "golang.org/x/net/html"
+
+// AnalysisData is the output of analyzer
+type AnalysisData struct {
+    HTMLVersion string
+    Title       string
+    Headings    map[string]int
+    Links       []string
+    LoginForm   bool
+}
+
+// Analyzer defines contract for analyzing HTML documents
+type Analyzer interface {
+    Analyze(doc *html.Node, baseURL string) (*AnalysisData, error)
+}
 
     hrefParsed, err := url.Parse(href)
     if err != nil {
