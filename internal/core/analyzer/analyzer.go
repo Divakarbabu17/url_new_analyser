@@ -7,7 +7,7 @@ import (
     "golang.org/x/net/html"
 )
 
-// AnalysisData holds extracted information from a webpage
+// AnalysisData holds extracted information
 type AnalysisData struct {
     HTMLVersion string
     Title       string
@@ -16,7 +16,7 @@ type AnalysisData struct {
     LoginForm   bool
 }
 
-// AnalyzeDocument traverses the HTML tree and extracts required data
+// AnalyzeDocument traverses  and extracts required data
 func AnalyzeDocument(doc *html.Node, baseURL string) *AnalysisData {
     data := &AnalysisData{
         Headings: make(map[string]int),
@@ -69,9 +69,9 @@ func AnalyzeDocument(doc *html.Node, baseURL string) *AnalysisData {
     return data
 }
 
-//////////////////////////////////////////////////////////
-// 🔽 Helper Functions (Pure Logic)
-//////////////////////////////////////////////////////////
+//--------------------------------------
+///// Helper Functions 
+//-------------------------------------------
 
 // detectHTMLVersion inspects doctype node to determine HTML version
 func detectHTMLVersion(n *html.Node) string {
@@ -129,23 +129,7 @@ func normalizeURL(href, base string) string {
     baseParsed, err := url.Parse(base)
     if err != nil {
         return href
-    }package ports
-
-import "golang.org/x/net/html"
-
-// AnalysisData is the output of analyzer
-type AnalysisData struct {
-    HTMLVersion string
-    Title       string
-    Headings    map[string]int
-    Links       []string
-    LoginForm   bool
-}
-
-// Analyzer defines contract for analyzing HTML documents
-type Analyzer interface {
-    Analyze(doc *html.Node, baseURL string) (*AnalysisData, error)
-}
+    }
 
     hrefParsed, err := url.Parse(href)
     if err != nil {
